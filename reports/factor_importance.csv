@@ -1,0 +1,21 @@
+feature,importance
+Attendance,0.3796110997483727
+Hours_Studied,0.2419124583173297
+Previous_Scores,0.08171307186849719
+Tutoring_Sessions,0.03208718001524497
+Physical_Activity,0.02353016968030509
+Sleep_Hours,0.02167481366383335
+Access_to_Resources_High,0.018893076940091486
+Parental_Involvement_High,0.017618942951086153
+Parental_Involvement_Low,0.015717701646624647
+Access_to_Resources_Low,0.012947363969522159
+Family_Income_High,0.010817563641597975
+Parental_Education_Level_Postgraduate,0.008216957537510547
+Teacher_Quality_High,0.0077917917504984665
+Peer_Influence_Positive,0.007313565988559211
+Parental_Education_Level_High School,0.00687903751638218
+Motivation_Level_High,0.006420232270162348
+Distance_from_Home_Far,0.006319216305816701
+Peer_Influence_Negative,0.006092442264327256
+Motivation_Level_Low,0.006070009906901415
+Family_Income_Low,0.0059931306378673615

@@ -1,0 +1,12 @@
+metric,value
+input_rows,6607
+output_rows,6607
+rows_dropped,0
+missing_critical_rows,0
+missing_numeric_cells,0
+missing_categorical_cells,235
+attendance_out_of_range_rows,0
+score_out_of_range_rows,1
+negative_hours_rows,0
+negative_sleep_rows,0
+negative_tutoring_rows,0
