@@ -86,7 +86,7 @@ This creates:
 - CSV summary tables for BI reporting
 - reports/at_risk_students.csv and reports/at_risk_interventions.csv
 - reports/data_quality_summary.csv
-- HTML charts for shareable visuals
+- HTML charts for shareable visuals, including risk-tier and intervention-target charts
 
 ## KPI Definitions
 

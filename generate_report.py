@@ -4,6 +4,8 @@ import argparse
 from pathlib import Path
 
 import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 from bi_utils import (
     at_risk_tier_summary,
@@ -71,13 +73,13 @@ def create_report(data_path: str, output_dir: str) -> Path:
     priority_students.to_csv(out / "priority_students.csv", index=False)
     quality.to_csv(out / "data_quality_summary.csv", index=False)
 
-    fig_hist = px.histogram(
+    fig_hist = px.violin(
         df,
-        x="Exam_Score",
+        x="School_Type",
+        y="Exam_Score",
         color="School_Type",
-        nbins=25,
-        barmode="overlay",
-        opacity=0.65,
+        box=True,
+        points="outliers",
         title="Exam Score Distribution by School Type",
     )
     fig_hist.write_html(out / "exam_score_distribution.html", include_plotlyjs="cdn")
@@ -91,16 +93,72 @@ def create_report(data_path: str, output_dir: str) -> Path:
     )
     fig_importance.write_html(out / "feature_importance.html", include_plotlyjs="cdn")
 
-    fig_support = px.scatter(
+    fig_support = px.density_heatmap(
         df,
         x="Attendance",
         y="Exam_Score",
-        color="Tutoring_Sessions",
-        size="Hours_Studied",
-        hover_data=["Motivation_Level", "Family_Income", "Internet_Access", "Teacher_Quality"],
-        title="Attendance vs Exam Score (size = hours studied)",
+        z="Hours_Studied",
+        histfunc="avg",
+        nbinsx=30,
+        nbinsy=30,
+        color_continuous_scale="Viridis",
+        title="Attendance vs Exam Score Density (color = avg study hours)",
     )
     fig_support.write_html(out / "attendance_vs_score.html", include_plotlyjs="cdn")
+
+    fig_risk_tiers = px.bar(
+        risk_tiers,
+        x="risk_tier",
+        y="student_count",
+        color="risk_tier",
+        text="share_percent",
+        title="Risk Tier Distribution",
+    )
+    fig_risk_tiers.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+    fig_risk_tiers.update_layout(showlegend=False)
+    fig_risk_tiers.write_html(out / "risk_tier_distribution.html", include_plotlyjs="cdn")
+
+    top_interventions = interventions.head(8)
+    fig_intervention = px.bar(
+        top_interventions.sort_values("student_count", ascending=True),
+        x="student_count",
+        y="intervention",
+        color="priority",
+        orientation="h",
+        title="Top Intervention Targets",
+    )
+    fig_intervention.write_html(out / "intervention_targets.html", include_plotlyjs="cdn")
+
+    tutoring = (
+        df.groupby("Tutoring_Sessions", as_index=False)
+        .agg(avg_exam_score=("Exam_Score", "mean"), pass_rate_percent=("pass_flag", lambda s: s.mean() * 100))
+        .sort_values("Tutoring_Sessions")
+    )
+    fig_tutoring = make_subplots(specs=[[{"secondary_y": True}]])
+    fig_tutoring.add_trace(
+        go.Scatter(
+            x=tutoring["Tutoring_Sessions"],
+            y=tutoring["avg_exam_score"],
+            mode="lines+markers",
+            name="Average Exam Score",
+            line={"width": 3, "color": "#1f77b4"},
+        ),
+        secondary_y=False,
+    )
+    fig_tutoring.add_trace(
+        go.Scatter(
+            x=tutoring["Tutoring_Sessions"],
+            y=tutoring["pass_rate_percent"],
+            mode="lines+markers",
+            name="Pass Rate (%)",
+            line={"width": 3, "color": "#c8553d", "dash": "dash"},
+        ),
+        secondary_y=True,
+    )
+    fig_tutoring.update_layout(title="Tutoring Sessions vs Score and Pass Rate", legend={"orientation": "h", "y": 1.1, "x": 0})
+    fig_tutoring.update_yaxes(title_text="Average Exam Score", secondary_y=False)
+    fig_tutoring.update_yaxes(title_text="Pass Rate (%)", secondary_y=True, range=[0, 100])
+    fig_tutoring.write_html(out / "tutoring_score_passrate.html", include_plotlyjs="cdn")
 
     top_school = school.iloc[0]["School_Type"] if not school.empty else "N/A"
     best_motivation = motivation.iloc[0]["Motivation_Level"] if not motivation.empty else "N/A"
@@ -176,6 +234,9 @@ def create_report(data_path: str, output_dir: str) -> Path:
                 "- exam_score_distribution.html",
                 "- feature_importance.html",
                 "- attendance_vs_score.html",
+                "- risk_tier_distribution.html",
+                "- intervention_targets.html",
+                "- tutoring_score_passrate.html",
                 "",
                 "## Recommended Next Actions",
                 "1. Assign counselors and teachers to all Critical-tier students this week.",

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
+from plotly.subplots import make_subplots
 
 from bi_utils import (
     apply_filters,
@@ -213,14 +215,14 @@ def render_overview_tab(df: pd.DataFrame) -> None:
     c1, c2 = st.columns(2)
 
     with c1:
-        fig_hist = px.histogram(
+        fig_hist = px.violin(
             df,
-            x="Exam_Score",
+            x="School_Type",
+            y="Exam_Score",
             color="School_Type",
-            nbins=25,
+            box=True,
+            points="outliers",
             title="Exam Score Distribution by School Type",
-            barmode="overlay",
-            opacity=0.65,
         )
         st.plotly_chart(fig_hist, use_container_width=True)
 
@@ -236,14 +238,16 @@ def render_overview_tab(df: pd.DataFrame) -> None:
         )
         st.plotly_chart(fig_motivation, use_container_width=True)
 
-    fig_scatter = px.scatter(
+    fig_scatter = px.density_heatmap(
         df,
         x="Attendance",
         y="Exam_Score",
-        color="Tutoring_Sessions",
-        size="Hours_Studied",
-        hover_data=["Previous_Scores", "Sleep_Hours", "Gender", "Family_Income"],
-        title="Attendance vs Exam Score (size = study hours, color = tutoring sessions)",
+        z="Hours_Studied",
+        histfunc="avg",
+        nbinsx=30,
+        nbinsy=30,
+        color_continuous_scale="Viridis",
+        title="Attendance vs Exam Score Density (color = avg study hours)",
     )
     st.plotly_chart(fig_scatter, use_container_width=True)
 
@@ -333,13 +337,30 @@ def render_support_tab(df: pd.DataFrame) -> None:
             .agg(avg_exam_score=("Exam_Score", "mean"), pass_rate_percent=("pass_flag", lambda s: s.mean() * 100))
             .sort_values("Tutoring_Sessions")
         )
-        fig_tutoring = px.line(
-            tutoring,
-            x="Tutoring_Sessions",
-            y=["avg_exam_score", "pass_rate_percent"],
-            markers=True,
-            title="Tutoring Sessions vs Score and Pass Rate",
+        fig_tutoring = make_subplots(specs=[[{"secondary_y": True}]])
+        fig_tutoring.add_trace(
+            go.Scatter(
+                x=tutoring["Tutoring_Sessions"],
+                y=tutoring["avg_exam_score"],
+                mode="lines+markers",
+                name="Average Exam Score",
+                line={"width": 3, "color": "#1f77b4"},
+            ),
+            secondary_y=False,
         )
+        fig_tutoring.add_trace(
+            go.Scatter(
+                x=tutoring["Tutoring_Sessions"],
+                y=tutoring["pass_rate_percent"],
+                mode="lines+markers",
+                name="Pass Rate (%)",
+                line={"width": 3, "color": "#c8553d", "dash": "dash"},
+            ),
+            secondary_y=True,
+        )
+        fig_tutoring.update_layout(title="Tutoring Sessions vs Score and Pass Rate", legend={"orientation": "h", "y": 1.1, "x": 0})
+        fig_tutoring.update_yaxes(title_text="Average Exam Score", secondary_y=False)
+        fig_tutoring.update_yaxes(title_text="Pass Rate (%)", secondary_y=True, range=[0, 100])
         st.plotly_chart(fig_tutoring, use_container_width=True)
 
     support = study_attendance_summary(df)
@@ -353,13 +374,18 @@ def render_support_tab(df: pd.DataFrame) -> None:
     )
     st.plotly_chart(fig_support, use_container_width=True)
 
+    context_map = (
+        df.groupby(["Parental_Education_Level", "Peer_Influence", "Distance_from_Home"], as_index=False)
+        .agg(student_count=("Exam_Score", "size"), avg_exam_score=("Exam_Score", "mean"))
+    )
+
     fig_sunburst = px.sunburst(
-        df,
+        context_map,
         path=["Parental_Education_Level", "Peer_Influence", "Distance_from_Home"],
-        values="Exam_Score",
-        color="Exam_Score",
+        values="student_count",
+        color="avg_exam_score",
         color_continuous_scale="Viridis",
-        title="Contextual Performance Map",
+        title="Contextual Performance Map (size = students, color = avg score)",
     )
     st.plotly_chart(fig_sunburst, use_container_width=True)
 
@@ -470,10 +496,12 @@ def render_at_risk_tab(df: pd.DataFrame) -> None:
             tier_summary,
             x="risk_tier",
             y="student_count",
-            color="share_percent",
+            color="risk_tier",
+            text="share_percent",
             title="Risk Tier Distribution",
-            color_continuous_scale="Reds",
         )
+        fig_tier.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+        fig_tier.update_layout(showlegend=False)
         st.plotly_chart(fig_tier, use_container_width=True)
 
     with c2:
